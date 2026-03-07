@@ -3,6 +3,7 @@ package com.example.financeapp.home
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -42,7 +43,6 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFloatingActionButton
-import androidx.compose.material3.SegmentedButtonDefaults.Icon
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -73,93 +73,98 @@ fun ExpenseTypeSelector(
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackBarHostState) },
         floatingActionButton = {
-            Box(
-                modifier = Modifier
-                    .padding(bottom = 84.dp, end = 16.dp)
-                    .combinedClickable(
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
-                            // navController.navigate("your_route")
-                        },
-                        onLongClick = {
-                            scope.launch {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                snackBarHostState.showSnackbar(
-                                    message = "Add Category",
-                                    duration = SnackbarDuration.Short
-                                )
-                            }
-                        }
-                    )
+            FloatingActionButton(
+                onClick = { 
+                     // Add logic to open a dialog to add a category or item
+                },
+                modifier = Modifier.padding(bottom = 84.dp, end = 16.dp),
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             ) {
-                FloatingActionButton(
-                    onClick = { },
-                    shape = FloatingActionButtonDefaults.shape,
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                ) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = "Add",
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = "Add",
+                    modifier = Modifier.size(28.dp)
+                )
             }
         }
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            item {
-                Text(
-                    text = "Where did you spend?",
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 30.sp,
-                    modifier = Modifier.padding(16.dp)
-                )
+        if (categories.isEmpty()) {
+            // Empty State
+            Box(
+                modifier = Modifier.fillMaxSize().padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "Hmm...It's Lonely in Here",
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Use the + button to add your first category",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Gray
+                    )
+                }
             }
-            items(groupedData, key = { it.first }) { (categoryName, itemsInCategory)  ->
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentPadding = PaddingValues(bottom = 100.dp)
+            ) {
+                item {
+                    Text(
+                        text = "Where did you spend?",
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        modifier = Modifier.padding(24.dp)
+                    )
+                }
 
-                // Always show the Category Header
-                Text(
-                    text = categoryName,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 20.sp,
-                )
+                items(groupedData) { (categoryName, itemsInCategory)  ->
+                    Column(modifier = Modifier.padding(vertical = 16.dp)) {
+                        Text(
+                            text = categoryName,
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            modifier = Modifier.padding(horizontal = 24.dp)
+                        )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    if (itemsInCategory.isNotEmpty()) {
-                        // Show the actual items
-                        items(itemsInCategory, key = { it.id }) { item ->
-                            BigSquareCard(
-                                label = item.title,
-                                icon = Icons.Rounded.Payments,
-                                onClick = {
-                                    scope.launch {
-                                        haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
-                                    }
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            contentPadding = PaddingValues(horizontal = 24.dp)
+                        ) {
+                            if (itemsInCategory.isNotEmpty()) {
+                                items(itemsInCategory) { item ->
+                                    BigSquareCard(
+                                        label = item.title,
+                                        icon = Icons.Rounded.Payments,
+                                        onClick = {
+                                            scope.launch {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                // Handle item selection here
+                                            }
+                                        }
+                                    )
                                 }
-                            )
-                        }
-                    }
-
-                    else {
-                        // Show the empty state ONLY for this specific category
-                        item {
-                            Text(
-                                text = "No items in $categoryName",
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 16.sp,
-                                color = Color.Gray
-                            )
+                            } else {
+                                item {
+                                    Text(
+                                        text = "No items in $categoryName",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = Color.Gray,
+                                        modifier = Modifier.padding(vertical = 40.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }

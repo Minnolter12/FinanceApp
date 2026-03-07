@@ -1,10 +1,10 @@
 package com.example.financeapp.home
 
 import android.R
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,33 +26,32 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowBackIosNew
+import androidx.compose.material.icons.filled.Backspace
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CreditCard
 import androidx.compose.material.icons.rounded.History
-import androidx.compose.material.icons.rounded.LocalGroceryStore
 import androidx.compose.material.icons.rounded.Payment
 import androidx.compose.material.icons.rounded.Payments
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -70,9 +69,9 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
@@ -82,9 +81,11 @@ import androidx.navigation.NavController
 import com.example.financeapp.AppViewModel
 import com.example.financeapp.data.ExpenseEntity
 import kotlinx.coroutines.delay
+import java.text.NumberFormat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import java.util.Locale
 import kotlinx.coroutines.launch
 
 @Composable
@@ -95,107 +96,75 @@ fun HomeScreen(
 ) {
     val uiState by homeScreenViewModel.uiState.collectAsState()
     val haptic = LocalHapticFeedback.current
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
     val total by appViewModel.totalExpense.collectAsState()
     val recentExpenses by appViewModel.recentExpenses.collectAsState()
 
+    // Formatting total with commas
+    val formattedTotal = remember(total) {
+        NumberFormat.getNumberInstance(Locale("en", "IN")).format(total ?: 0)
+    }
+
     Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 text = { Text(text = "Add Expense") },
-                icon = {
-                    Icon(
-                        imageVector = Icons.Rounded.Add,
-                        contentDescription = "Add Expense"
-                    )
-                },
+                icon = { Icon(imageVector = Icons.Rounded.Add, contentDescription = "Add Expense") },
                 onClick = {
-                    scope.launch {
-                        navController.navigate("keyboardScreen")
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    }
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    navController.navigate("keyboardScreen")
                 },
-                modifier = Modifier.padding(
-                    bottom = 84.dp,
-                    end = 16.dp
-                ),
-                expanded = true,
+                modifier = Modifier.padding(bottom = 84.dp, end = 16.dp),
                 shape = CircleShape,
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                 elevation = FloatingActionButtonDefaults.elevation(4.dp)
             )
         }
-
     ) { paddingValues ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
+            modifier = Modifier.fillMaxSize().padding(paddingValues),
             horizontalAlignment = Alignment.CenterHorizontally,
-            contentPadding = PaddingValues(bottom = 120.dp) // Scroll fix
+            contentPadding = PaddingValues(bottom = 120.dp)
         ) {
+            item { Spacer(modifier = Modifier.height(16.dp)) }
 
             item {
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-            val currentDate = LocalDate.now()
-            val formatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
-            val formattedDate = currentDate.format(formatter)
-
-            item {
+                val currentDate = LocalDate.now().format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))
                 GlobalText(
-                    text = formattedDate,
+                    text = currentDate,
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(horizontal = 16.dp)
-                        .clickable(
-                            onClick = {
-
-                            }
-                        )
                 )
             }
 
+            item { Spacer(modifier = Modifier.height(5.dp)) }
+
             item {
-                Spacer(modifier = Modifier.height(5.dp))
+                // Responsive font size for HomeScreen total
+                val fontSize = when {
+                    formattedTotal.length > 10 -> 42.sp
+                    formattedTotal.length > 7 -> 56.sp
+                    else -> 70.sp
+                }
+
+                Text(
+                    text = buildAnnotatedString {
+                        withStyle(style = SpanStyle(fontSize = fontSize * 0.7f)) { append("₹") }
+                        append(formattedTotal)
+                    },
+                    style = MaterialTheme.typography.displayLarge.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = fontSize
+                    ),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
             }
 
-            when (val state = uiState) {
-                is HomeScreenUiState.Result -> {
-                    item {
-                        Text(
-                            text = buildAnnotatedString {
-                                withStyle(style = SpanStyle(fontSize = 50.sp)) {
-                                    append("₹")
-                                }
-                                append("${total}")
-                            },
-                            style = MaterialTheme.typography.displayLarge.copy(
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 70.sp
-                            ),
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-                    }
+            item { Spacer(modifier = Modifier.height(8.dp)) }
 
-                    item {
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-                }
-                is HomeScreenUiState.Error -> {
-                    val message = state.message
-                    item {
-                        LaunchedEffect(snackbarHostState, message) {
-                            if (message != null) {
-                                snackbarHostState.showSnackbar(message)
-                            }
-                        }
-                    }
-                }
-            }
             item {
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),
@@ -203,79 +172,28 @@ fun HomeScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     item {
-                        ActionIconButton(
-                            textOne = "Cash",
-                            textTwo = "Hello",
-                            icon = Icons.Rounded.Payments,
-                            onClick = {
-                                // Action for viewing cards
-                            }
-                        )
+                        ActionIconButton(textOne = "Cash", textTwo = "Hello", icon = Icons.Rounded.Payments, onClick = {})
                     }
                     item {
-                        ActionIconButton(
-                            textOne = "UPI Balance",
-                            textTwo = "Hello",
-                            icon = Icons.Rounded.CreditCard,
-                            onClick = {
-                                // Action
-                            }
-                        )
+                        ActionIconButton(textOne = "UPI Balance", textTwo = "Hello", icon = Icons.Rounded.CreditCard, onClick = {})
                     }
                 }
             }
-            item {
-                Spacer(modifier = Modifier.height(32.dp))
-            }
+
+            item { Spacer(modifier = Modifier.height(32.dp)) }
+
             item {
                 WideExpenseHistoryCard(
-                    onClick = {
-                        haptic.performHapticFeedback(hapticFeedbackType = HapticFeedbackType.LongPress)
-                    },
+                    onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
                     recentExpenses = recentExpenses
                 )
             }
-            item {
-                Spacer(modifier = Modifier.height(32.dp))
-            }
-            item {
-                WideSquareCard(
-                    label = "Add Points",
-                    icon = Icons.Rounded.Payment,
-                ) {}
-            }
-            item {
-                Spacer(modifier = Modifier.height(32.dp))
-            }
-            item {
-                WideSquareCard(
-                    label = "Add Points",
-                    icon = Icons.Rounded.Payment,
-                ) {}
-            }
-            item {
-                WideSquareCard(
-                    label = "Add Points",
-                    icon = Icons.Rounded.Payment,
-                ) {}
-            }
-            item {
-                WideSquareCard(
-                    label = "Add Points",
-                    icon = Icons.Rounded.Payment,
-                ) {}
-            }
-            item {
-                WideSquareCard(
-                    label = "Add Points",
-                    icon = Icons.Rounded.Payment,
-                ) {}
-            }
-            item {
-                WideSquareCard(
-                    label = "Add Points",
-                    icon = Icons.Rounded.Payment,
-                ) {}
+
+            repeat(6) {
+                item {
+                    Spacer(modifier = Modifier.height(32.dp))
+                    WideSquareCard(label = "Add Points", icon = Icons.Rounded.Payment, onClick = {})
+                }
             }
         }
     }
@@ -291,180 +209,188 @@ fun KeyboardScreen(
     var input by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    var isNavigating by remember { mutableStateOf(false) }
+
+    // Dynamic Font Size logic for keyboard input
+    val displayFontSize = remember(input) {
+        when {
+            input.length > 9 -> 44.sp
+            input.length > 7 -> 54.sp
+            input.length > 5 -> 64.sp
+            else -> 80.sp
+        }
+    }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) { data ->
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .padding(16.dp)
-                    .wrapContentSize(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.inverseSurface
-                )
-            ) {
-                Text(
-                    text = data.visuals.message,
-                    modifier = Modifier.padding(12.dp),
-                    color = MaterialTheme.colorScheme.inverseOnSurface
-                )
-            }
-
-        } },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background
-    ) { paddingvalues ->
+    ) { paddingValues ->
         Column(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(paddingvalues)
-                .padding(horizontal = 40.dp),
+            modifier = modifier.fillMaxSize().padding(paddingValues).padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
+            // Amount Display
+            Box(
+                modifier = Modifier.fillMaxWidth().height(200.dp),
+                contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = buildAnnotatedString {
-                        withStyle(style = SpanStyle(fontSize = 50.sp)) {
-                            append("₹")
-                        }
+                        withStyle(style = SpanStyle(fontSize = displayFontSize * 0.6f)) { append("₹ ") }
                         append(if (input.isEmpty()) "0" else input)
                     },
-                    style = MaterialTheme.typography.displayMedium.copy(
+                    style = MaterialTheme.typography.displayLarge.copy(
                         fontWeight = FontWeight.Bold,
-                        fontSize = 80.sp
+                        fontSize = displayFontSize
                     ),
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
+                    maxLines = 1,
+                    overflow = TextOverflow.Visible
                 )
             }
 
             Spacer(modifier = Modifier.weight(1f))
 
+            // THE SQUARE GRID KEYBOARD
+
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    CustomKeyboardButton(modifier = Modifier.weight(1f), symbol = "7", onClick = { input += "7" })
-                    CustomKeyboardButton(modifier = Modifier.weight(1f), symbol = "8", onClick = { input += "8" })
-                    CustomKeyboardButton(modifier = Modifier.weight(1f), symbol = "9", onClick = { input += "9" })
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    CustomKeyboardButton(modifier = Modifier.weight(1f), symbol = "4", onClick = { input += "4" })
-                    CustomKeyboardButton(modifier = Modifier.weight(1f), symbol = "5", onClick = { input += "5" })
-                    CustomKeyboardButton(modifier = Modifier.weight(1f), symbol = "6", onClick = { input += "6" })
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    CustomKeyboardButton(modifier = Modifier.weight(1f), symbol = "1", onClick = { input += "1" })
-                    CustomKeyboardButton(modifier = Modifier.weight(1f), symbol = "2", onClick = { input += "2" })
-                    CustomKeyboardButton(modifier = Modifier.weight(1f), symbol = "3", onClick = { input += "3" })
-                }
-                Row(
-                   modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    CustomKeyboardButton(modifier = Modifier.size(100.dp), symbol = "0", onClick = { input += "0" })
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Spacer(modifier = Modifier.weight(2f))
-                    CustomKeyboardButton(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Default.ArrowBackIosNew,
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.KeyboardTap)
-                            navController.popBackStack()
-                        }
-                    )
-                    CustomKeyboardButton(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        onClick = {
-                            if (input.isEmpty()) {
-                                scope.launch {
-                                    val job = launch {
-                                        snackbarHostState.showSnackbar(
-                                            message = "Please enter an amount",
-                                            duration = SnackbarDuration.Indefinite
+                val keyboardRows = listOf(
+                    listOf("1", "2", "3"),
+                    listOf("4", "5", "6"),
+                    listOf("7", "8", "9"),
+                    listOf("DYNAMIC_BACKSPACE_BACK", "0", "DONE")
+                )
+
+                keyboardRows.forEach { rowKeys ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        rowKeys.forEach { key ->
+                            when (key) {
+                                "DYNAMIC_BACKSPACE_BACK" -> {
+                                    if (input == "") {
+                                        SquareKeyboardButton(
+                                            modifier = Modifier.weight(1f),
+                                            icon = Icons.AutoMirrored.Filled.ArrowBack,
+                                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                            onClick = {
+                                                if (!isNavigating) {
+                                                    isNavigating = true
+
+                                                    scope.launch {
+                                                        haptic.performHapticFeedback(HapticFeedbackType.KeyboardTap)
+                                                        navController.popBackStack()
+                                                    }
+                                                }
+                                            }
+                                        )
+                                    } else {
+                                        SquareKeyboardButton(
+                                            modifier = Modifier.weight(1f),
+                                            icon = Icons.AutoMirrored.Filled.Backspace,
+                                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                            onClick = {
+                                                scope.launch {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.KeyboardTap)
+                                                    input = input.dropLast(1)
+                                                }
+                                            },
+                                            onLongClick = {
+
+                                                TODO(
+                                                    "Currently, the entire screen recomposes when the back button" +
+                                                            "is long pressed. Maybe make the display logic its own compsable" +
+                                                            "that cares only about display, so the screen doesnt have to recompose" +
+                                                            "eveytime"
+                                                )
+
+                                                scope.launch {
+                                                    while (input.isNotEmpty()) {
+                                                        haptic.performHapticFeedback(HapticFeedbackType.KeyboardTap)
+                                                        input = input.dropLast(1)
+                                                        delay(100)
+                                                    }
+                                                }
+                                            }
                                         )
                                     }
-                                    delay(1500L)
-                                    snackbarHostState.currentSnackbarData?.dismiss()
-                                    job.cancel()
-
                                 }
-                                return@CustomKeyboardButton
+                                "DONE" -> {
+                                    SquareKeyboardButton(
+                                        modifier = Modifier.weight(1f),
+                                        icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        onClick = {
+                                            scope.launch {
+                                                if (input.isNotEmpty()) {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    navController.navigate("expenseTypeSelector")
+                                                }
+                                            }
+                                        }
+                                    )
+                                }
+                                else -> {
+                                    SquareKeyboardButton(
+                                        modifier = Modifier.weight(1f),
+                                        symbol = key,
+                                        onClick = {
+                                            if (input.length < 12) {
+                                                if (key == "0" && input == "") {
+                                                    return@SquareKeyboardButton
+                                                }
+                                                input += key
+                                                haptic.performHapticFeedback(HapticFeedbackType.KeyboardTap)
+                                            }
+                                        }
+                                    )
+                                }
                             }
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                      //      appViewModel.addExpense("Expense", amount = input.toInt())
-                            //      implement this inside expenseTypeSelector
-                            navController.navigate("expenseTypeSelector")
                         }
-                    )
-                    CustomKeyboardButton(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.AutoMirrored.Filled.Backspace,
-                        onClick = {
-                            if (input.isNotEmpty()) {
-                                input = input.dropLast(1)
-                            }
-                        }
-                    )
+                    }
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview
 @Composable
-fun GlobalButton(
-    modifier: Modifier,
-    onClick: () -> Unit,
-    name: String
+fun SquareKeyboardButton(
+    modifier: Modifier = Modifier,
+    symbol: String? = null,
+    icon: ImageVector? = null,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    contentColor: Color = MaterialTheme.colorScheme.onSurface,
+    onClick: () -> Unit = {},
+    onLongClick: () -> Unit = {}
 ) {
-    Button(
+    Surface(
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.aspectRatio(1.2f),
+        shape = RoundedCornerShape(16.dp),
+        color = containerColor,
+        contentColor = contentColor
     ) {
-        Text(
-            text = name,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center
-        )
+        Box(contentAlignment = Alignment.Center) {
+            if (symbol != null) {
+                Text(text = symbol, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
+            } else if (icon != null) {
+                Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(28.dp))
+            }
+        }
     }
 }
 
 @Composable
-fun GlobalText(
-    text: String?,
-    style: TextStyle,
-    modifier: Modifier = Modifier
-) {
-    Text(
-        text = text ?: "",
-        style = style,
-        textAlign = TextAlign.Center,
-        modifier = modifier
-    )
+fun GlobalText(text: String?, style: TextStyle, modifier: Modifier = Modifier) {
+    Text(text = text ?: "", style = style, textAlign = TextAlign.Center, modifier = modifier)
 }
 
 @Composable
@@ -481,86 +407,23 @@ fun ActionIconButton(
         onClick = onClick,
         shape = CircleShape,
         color = containerColor,
-        modifier = modifier
-            .padding(10.dp)
-            .width(170.dp)
+        modifier = modifier.padding(10.dp).width(170.dp)
     ) {
         Row(
-            modifier = Modifier
-                .padding(start = 6.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
+            modifier = Modifier.padding(start = 6.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                modifier = Modifier.size(52.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceContainerHigh),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = contentColor
-                )
+                Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = contentColor)
             }
             Column {
-                Text(
-                    text = textOne,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = contentColor,
-                    maxLines = 15
-                )
-                Text(
-                    text = textTwo,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Light,
-                    color = contentColor,
-                    maxLines = 1
-                )
+                Text(text = textOne, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = contentColor, maxLines = 15)
+                Text(text = textTwo, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Light, color = contentColor, maxLines = 1)
             }
-
-        }
-    }
-}
-
-@Composable
-private fun border(width: Dp, color: Color, shape: Shape) = Modifier.border(width, color, shape)
-
-@Composable
-fun CustomKeyboardButton(
-    modifier: Modifier = Modifier,
-    symbol: String? = null,
-    icon: ImageVector? = null,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
-    contentColor: Color = MaterialTheme.colorScheme.onSurface,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = modifier
-            .aspectRatio(1f)
-            .padding(6.dp)
-            .clip(CircleShape)
-            .background(containerColor)
-            .clickable { onClick() },
-        contentAlignment = Alignment.Center
-    ) {
-        if (symbol != null) {
-            Text(
-                text = symbol,
-                style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.Medium,
-                color = contentColor
-            )
-        } else if (icon != null) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-                tint = contentColor
-            )
         }
     }
 }
@@ -573,46 +436,19 @@ fun BigSquareCard(
 ) {
     ElevatedCard(
         onClick = onClick,
-        modifier = Modifier
-            .size(160.dp)
-            .aspectRatio(1f),
+        modifier = Modifier.size(160.dp).aspectRatio(1f),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
             contentColor = MaterialTheme.colorScheme.onSurface
         ),
-        elevation = CardDefaults.elevatedCardElevation(
-            defaultElevation = 6.dp,
-            pressedElevation = 2.dp
-        )
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp, pressedElevation = 2.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(28.dp)
-                )
+        Column(modifier = Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.SpaceBetween) {
+            Box(modifier = Modifier.size(48.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+                Icon(imageVector = icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(28.dp))
             }
-
-            Text(
-                text = label,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                maxLines = 2
-            )
+            Text(text = label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 2)
         }
     }
 }
@@ -625,47 +461,19 @@ fun WideSquareCard(
 ) {
     ElevatedCard(
         onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .height(150.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(150.dp),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
             contentColor = MaterialTheme.colorScheme.onSurface
         ),
-        elevation = CardDefaults.elevatedCardElevation(
-            defaultElevation = 6.dp,
-            pressedElevation = 2.dp
-        )
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp, pressedElevation = 2.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(28.dp)
-                )
+        Column(modifier = Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.SpaceBetween) {
+            Box(modifier = Modifier.size(48.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+                Icon(imageVector = icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(28.dp))
             }
-
-            Text(
-                text = label,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                maxLines = 2
-            )
+            Text(text = label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 2)
         }
     }
 }
@@ -676,98 +484,45 @@ fun WideExpenseHistoryCard(
     onClick: () -> Unit,
     recentExpenses: List<ExpenseEntity>
 ) {
-    val haptic = LocalHapticFeedback.current
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-
     ElevatedCard(
         onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .height(150.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(150.dp),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
             contentColor = MaterialTheme.colorScheme.onSurface
         ),
-        elevation = CardDefaults.elevatedCardElevation(
-            defaultElevation = 6.dp,
-            pressedElevation = 2.dp
-        )
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp, pressedElevation = 2.dp)
     ) {
-        Row(
-            modifier = modifier.fillMaxSize().padding(8.dp)
-        ) {
+        Row(modifier = modifier.fillMaxSize().padding(8.dp)) {
             ElevatedCard(
                 modifier = Modifier.width(90.dp).fillMaxHeight(),
-                shape = RoundedCornerShape(
-                    topEnd = 8.dp, topStart = 24.dp, bottomEnd = 8.dp, bottomStart = 24.dp
-                ),
-                colors = CardDefaults.elevatedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                shape = RoundedCornerShape(topEnd = 8.dp, topStart = 24.dp, bottomEnd = 8.dp, bottomStart = 24.dp),
+                colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
             ) {
-                Column(
-                    modifier = modifier.fillMaxSize().padding(6.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.History,
-                        contentDescription = "Expense History",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(45.dp)
-                    )
+                Column(modifier = modifier.fillMaxSize().padding(6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                    Icon(imageVector = Icons.Rounded.History, contentDescription = "Expense History", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(45.dp))
                 }
             }
-
             Spacer(modifier = modifier.width(10.dp))
-
             ElevatedCard(
                 modifier = Modifier.weight(1f).fillMaxHeight(),
-                shape = RoundedCornerShape(
-                    topEnd = 24.dp, topStart = 8.dp, bottomEnd = 24.dp, bottomStart = 8.dp
-                ),
-                colors = CardDefaults.elevatedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                shape = RoundedCornerShape(topEnd = 24.dp, topStart = 8.dp, bottomEnd = 24.dp, bottomStart = 8.dp),
+                colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
             ) {
                 LazyRow() {
                    if (recentExpenses.isEmpty()) {
                        item {
-                           Box(
-                               modifier = Modifier.padding(4.dp).fillParentMaxSize(),
-                               contentAlignment = Alignment.Center
-
-                           ) {
-                               Text(
-                                   text = "No Expenses yet!",
-                                   style = MaterialTheme.typography.titleLarge,
-                                   modifier = Modifier.align(Alignment.Center)
-                               )
+                           Box(modifier = Modifier.padding(4.dp).fillParentMaxSize(), contentAlignment = Alignment.Center) {
+                               Text(text = "No Expenses yet!", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Center))
                            }
                        }
                    } else {
                        items(recentExpenses) { expense ->
-                           Row(
-                               modifier = Modifier.padding(4.dp).fillMaxWidth(),
-                               horizontalArrangement = Arrangement.SpaceBetween,
-                               verticalAlignment = Alignment.CenterVertically
-                           ) {
-                               Text(
-                                   text = expense.title,
-                                   style = MaterialTheme.typography.titleMedium
-                               )
-
+                           Row(modifier = Modifier.padding(10.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                               Text(text = expense.title, style = MaterialTheme.typography.titleMedium)
                                Spacer(modifier = modifier.width(4.dp))
-
-                               Text(
-                                   text = "₹${expense.amount}",
-                                   style = MaterialTheme.typography.titleMedium,
-                               )
+                               Text(text = "₹${expense.amount}", style = MaterialTheme.typography.titleMedium)
                            }
                        }
                    }
